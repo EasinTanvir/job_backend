@@ -15,44 +15,84 @@ const createJobs = async (req, res, next) => {
 };
 
 const getJobs = async (req, res, next) => {
+  const {
+    search: searchText,
+    location: searchLocation,
+    jobType,
+    category,
+    page,
+    minPrice,
+    maxPrice,
+  } = req.query;
+
   let findJobs;
 
-  const search = req.query.search
+  const search = searchText
     ? {
-        title: { $regex: req.query.search, $options: "i" },
+        title: { $regex: searchText, $options: "i" },
       }
     : {};
 
-  const location = req.query.location
+  const location = searchLocation
     ? {
-        location: { $regex: req.query.location, $options: "i" },
+        location: { $regex: searchLocation, $options: "i" },
       }
     : {};
 
-  const category = req.query.category
+  const cat = category
     ? {
-        title: { $regex: req.query.category, $options: "i" },
+        title: { $regex: category, $options: "i" },
       }
     : {};
 
-  const type = req.query.type
+  const type = jobType
     ? {
-        jobType: { $regex: req.query.type, $options: "i" },
+        jobType: { $regex: jobType, $options: "i" },
       }
     : {};
+
+  const priceCondition = {};
+  if (minPrice !== undefined) {
+    priceCondition.$gte = minPrice;
+  }
+  if (maxPrice !== undefined) {
+    priceCondition.$lte = maxPrice;
+  }
+
+  const priceFilter = Object.keys(priceCondition).length
+    ? { salary: priceCondition }
+    : {};
+
+  let totalJob = await jobSchema.find({
+    ...search,
+    ...location,
+    ...cat,
+    ...type,
+    ...priceFilter,
+  });
+
+  const currentPage = page ? page : 1;
+  const jobPerPage = 4;
+  const totalPage = Math.round(totalJob.length / 4);
+
+  const skipJob = currentPage * jobPerPage - jobPerPage;
 
   try {
-    findJobs = await jobSchema.find({
-      ...search,
-      ...location,
-      ...category,
-      ...type,
-    });
+    findJobs = await jobSchema
+      .find({
+        ...search,
+        ...location,
+        ...cat,
+        ...type,
+        ...priceFilter,
+      })
+      .skip(skipJob)
+      .limit(jobPerPage);
   } catch (err) {
     const errors = new HttpError("create job failed", 500);
     return next(errors);
   }
-  res.status(200).json(findJobs);
+  res.status(200).json({ jobs: findJobs, page: totalPage });
 };
 
 const findJobsById = async (req, res, next) => {

@@ -5,6 +5,7 @@ const protectRoutes = require("../helper/protectRoutes");
 
 router.route("/").post(protectRoutes, jobContrl.createJobs);
 router.route("/").get(jobContrl.getJobs);
+router.route("/test").get((req, res) => res.json({ message: "Test" }));
 router.route("/:id").get(jobContrl.findJobsById);
 router.route("/post/job").get(protectRoutes, jobContrl.getPostJobs);
 router
